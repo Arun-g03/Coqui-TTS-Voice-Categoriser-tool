@@ -127,6 +127,10 @@ class TTSTesterGUI(tk.Tk):
         self.tag_btn = ttk.Button(speaker_frame, text="Manage Tags", command=self.open_speaker_tag_dialog)
         self.tag_btn.pack(side='right', padx=5)
         
+        # Refresh speakers button
+        self.refresh_speakers_btn = ttk.Button(speaker_frame, text="🔄 Refresh", command=self.refresh_speaker_list)
+        self.refresh_speakers_btn.pack(side='right', padx=5)
+        
         # Speaker filter toggle
         filter_frame = ttk.Frame(self)
         filter_frame.pack(pady=2, fill='x')
@@ -344,11 +348,18 @@ class TTSTesterGUI(tk.Tk):
                     # Refresh model list to update organization
                     self.load_coqui_models()
                 
+                # Store the TTS engine for filter checking
+                self.tts_engine = tts
+                
                 # Load speakers
-                speakers = getattr(tts, 'speakers', None)
-                if speakers and isinstance(speakers, (list, tuple)) and len(speakers) > 0:
-                    self.coqui_speakers = speakers
-                    self.log(f"Loaded {len(speakers)} speakers.")
+                if tts.is_multi_speaker:
+                    speakers = tts.speakers
+                    if speakers and isinstance(speakers, (list, tuple)) and len(speakers) > 0:
+                        self.coqui_speakers = speakers
+                        self.log(f"Loaded {len(speakers)} speakers for multi-speaker model.")
+                    else:
+                        self.coqui_speakers = [model]  # Fallback to model name
+                        self.log("Multi-speaker model detected but no speakers found (using model name as fallback).")
                 else:
                     self.coqui_speakers = [model]  # Use model name for single-speaker
                     self.log("Single-speaker model (using model name as speaker identifier).")
@@ -372,14 +383,26 @@ class TTSTesterGUI(tk.Tk):
         threading.Thread(target=load_model_info, daemon=True).start()
 
     def update_speaker_menu(self):
-        """Update speaker menu with tagged speakers"""
+        """Update speaker menu with tagged speakers, respecting filter toggle for multi-speaker models"""
         if not self.coqui_speakers:
             self.speaker_menu['values'] = []
             self.speaker_var.set('')
             return
-        
-        self.speaker_menu['values'] = self.coqui_speakers
 
+        # If filter is enabled and model is multi-speaker, only show untagged speakers
+        if hasattr(self, 'selected_model') and hasattr(self, 'show_untagged_only') and self.selected_model and self.show_untagged_only.get():
+            # Only filter if multi-speaker
+            if hasattr(self, 'tts_engine') and self.tts_engine and hasattr(self.tts_engine, 'is_multi_speaker') and self.tts_engine.is_multi_speaker:
+                untagged = self.speaker_service.get_untagged_speakers(self.selected_model, self.coqui_speakers)
+                self.speaker_menu['values'] = untagged
+                if untagged:
+                    self.speaker_var.set(untagged[0])
+                else:
+                    self.speaker_var.set('')
+                self.update_quick_tagging_controls()
+                return
+        # Default: show all speakers
+        self.speaker_menu['values'] = self.coqui_speakers
         if self.speaker_menu['values']:
             self.speaker_var.set(self.speaker_menu['values'][0])
         else:
@@ -389,6 +412,42 @@ class TTSTesterGUI(tk.Tk):
     def on_filter_toggle(self):
         """Handle filter toggle state change"""
         self.update_speaker_menu()
+
+    def refresh_speaker_list(self):
+        """Refresh the speaker list, respecting the current filter settings"""
+        if not self.selected_model:
+            self.log("No model selected. Please select a model first.")
+            return
+            
+        self.log("🔄 Refreshing speaker list...")
+        
+        # Reload the current model to get fresh speaker information
+        try:
+            from TTS.api import TTS
+            tts = TTS(model_name=self.selected_model)
+            
+            # Store the TTS engine for filter checking
+            self.tts_engine = tts
+            
+            # Reload speakers
+            if tts.is_multi_speaker:
+                speakers = tts.speakers
+                if speakers and isinstance(speakers, (list, tuple)) and len(speakers) > 0:
+                    self.coqui_speakers = speakers
+                    self.log(f"✅ Refreshed: Loaded {len(speakers)} speakers for multi-speaker model.")
+                else:
+                    self.coqui_speakers = [self.selected_model]  # Fallback to model name
+                    self.log("⚠️ Multi-speaker model detected but no speakers found (using model name as fallback).")
+            else:
+                self.coqui_speakers = [self.selected_model]  # Use model name for single-speaker
+                self.log("✅ Refreshed: Single-speaker model (using model name as speaker identifier).")
+            
+            # Update the speaker menu with current filter settings
+            self.update_speaker_menu()
+            
+        except Exception as e:
+            self.log(f"❌ Error refreshing speaker list: {e}")
+            self.log(f"📋 Error details: {traceback.format_exc()}")
 
     def update_quick_tagging_controls(self):
         """Update the quick tagging controls based on current speaker"""
@@ -625,8 +684,7 @@ class TTSTesterGUI(tk.Tk):
                 
                 # Add speaker if available and model is multi-speaker
                 # Check if the model is actually multi-speaker using TTS object properties
-                is_multi_speaker = getattr(tts, 'is_multi_speaker', False)
-                if speaker and is_multi_speaker and speaker != "Single Speaker":
+                if speaker and tts.is_multi_speaker and speaker != "Single Speaker":
                     kwargs['speaker'] = speaker
                 
                 # Add language if available and model is multi-lingual

@@ -69,12 +69,14 @@ class SpeakerTagDialog(tk.Toplevel):
         ttk.Label(speakers_frame, text="Speakers:").pack(anchor='w')
         
         # Create Treeview for speakers and their tags
-        columns = ('speaker', 'tags')
+        columns = ('speaker', 'tags', 'rating')
         self.speakers_tree = ttk.Treeview(speakers_frame, columns=columns, show='tree headings', height=15)
         self.speakers_tree.heading('speaker', text='Speaker')
         self.speakers_tree.heading('tags', text='Tags')
-        self.speakers_tree.column('speaker', width=200)
-        self.speakers_tree.column('tags', width=300)
+        self.speakers_tree.heading('rating', text='Rating')
+        self.speakers_tree.column('speaker', width=150)
+        self.speakers_tree.column('tags', width=250)
+        self.speakers_tree.column('rating', width=80)
         
         # Scrollbar for speakers tree
         speakers_scrollbar = ttk.Scrollbar(speakers_frame, orient='vertical', command=self.speakers_tree.yview)
@@ -96,6 +98,33 @@ class SpeakerTagDialog(tk.Toplevel):
         ttk.Label(info_frame, text="Selected Speaker:").pack(anchor='w')
         self.selected_speaker_label = ttk.Label(info_frame, text="None", font=('Arial', 10, 'bold'))
         self.selected_speaker_label.pack(anchor='w')
+        
+        # Rating section
+        rating_frame = ttk.LabelFrame(right_frame, text="Speaker Rating")
+        rating_frame.pack(fill='x', padx=5, pady=5)
+        
+        # Current rating display
+        rating_display_frame = ttk.Frame(rating_frame)
+        rating_display_frame.pack(fill='x', padx=5, pady=5)
+        ttk.Label(rating_display_frame, text="Current Rating:").pack(side='left')
+        self.current_rating_label = ttk.Label(rating_display_frame, text="No rating", font=('Arial', 9, 'italic'))
+        self.current_rating_label.pack(side='left', padx=(5, 0))
+        
+        # Rating input
+        rating_input_frame = ttk.Frame(rating_frame)
+        rating_input_frame.pack(fill='x', padx=5, pady=5)
+        ttk.Label(rating_input_frame, text="Rating (0.0-5.0):").pack(side='left')
+        self.rating_var = tk.DoubleVar(value=0.0)
+        self.rating_entry = ttk.Entry(rating_input_frame, textvariable=self.rating_var, width=8)
+        self.rating_entry.pack(side='left', padx=(5, 0))
+        
+        # Rating buttons
+        rating_buttons_frame = ttk.Frame(rating_frame)
+        rating_buttons_frame.pack(fill='x', padx=5, pady=5)
+        self.set_rating_btn = ttk.Button(rating_buttons_frame, text="Set Rating", command=self.set_speaker_rating)
+        self.set_rating_btn.pack(side='left', padx=(0, 5))
+        self.remove_rating_btn = ttk.Button(rating_buttons_frame, text="Remove Rating", command=self.remove_speaker_rating)
+        self.remove_rating_btn.pack(side='left')
         
         # Current tags
         current_tags_frame = ttk.LabelFrame(right_frame, text="Current Tags")
@@ -187,7 +216,9 @@ class SpeakerTagDialog(tk.Toplevel):
             display_name = "Single Speaker" if speaker == "" else speaker
             tags = self.speaker_service.get_speaker_tags(self.model_name, speaker)
             tags_str = ", ".join(tags) if tags else "No tags"
-            self.speakers_tree.insert('', 'end', values=(display_name, tags_str))
+            rating = self.speaker_service.get_speaker_rating(self.model_name, speaker)
+            rating_str = f"{rating:.1f}" if rating > 0.0 else "No rating"
+            self.speakers_tree.insert('', 'end', values=(display_name, tags_str, rating_str))
             
     def populate_existing_tags(self):
         """Populate the existing tags listbox"""
@@ -222,7 +253,9 @@ class SpeakerTagDialog(tk.Toplevel):
                 continue
                 
             tags_str = ", ".join(tags) if tags else "No tags"
-            self.speakers_tree.insert('', 'end', values=(display_name, tags_str))
+            rating = self.speaker_service.get_speaker_rating(self.model_name, speaker)
+            rating_str = f"{rating:.1f}" if rating > 0.0 else "No rating"
+            self.speakers_tree.insert('', 'end', values=(display_name, tags_str, rating_str))
             
     def on_filter_change(self):
         """Handle filter radio button change"""
@@ -243,9 +276,12 @@ class SpeakerTagDialog(tk.Toplevel):
             
             self.selected_speaker_label.config(text=display_name)
             self.update_current_tags_display(actual_speaker)
+            self.update_current_rating_display(actual_speaker)
         else:
             self.selected_speaker_label.config(text="None")
             self.current_tags_listbox.delete(0, tk.END)
+            self.current_rating_label.config(text="No rating")
+            self.rating_var.set(0.0)
             
     def update_current_tags_display(self, speaker):
         """Update the current tags display for a speaker"""
@@ -385,4 +421,80 @@ class SpeakerTagDialog(tk.Toplevel):
     def cancel(self):
         """Cancel changes and close dialog"""
         self.result = False
-        self.destroy() 
+        self.destroy()
+    
+    def set_speaker_rating(self):
+        """Set rating for the selected speaker"""
+        display_name = self.selected_speaker_label.cget("text")
+        rating = self.rating_var.get()
+        
+        if display_name == "None":
+            messagebox.showwarning("No Speaker", "Please select a speaker first.")
+            return
+            
+        if rating < 0.0 or rating > 5.0:
+            messagebox.showwarning("Invalid Rating", "Rating must be between 0.0 and 5.0.")
+            return
+        
+        # Convert display name back to actual speaker name
+        if display_name == "Single Speaker":
+            actual_speaker = ""
+        else:
+            actual_speaker = display_name
+            
+        # Set rating
+        if self.speaker_service.set_speaker_rating(self.model_name, actual_speaker, rating):
+            # Update displays
+            self.update_current_rating_display(actual_speaker)
+            self.populate_speakers_tree()
+            
+            # Reselect current speaker
+            for item in self.speakers_tree.get_children():
+                if self.speakers_tree.item(item)['values'][0] == display_name:
+                    self.speakers_tree.selection_set(item)
+                    break
+                    
+            messagebox.showinfo("Success", f"Rating set to {rating:.1f} for speaker '{display_name}'")
+        else:
+            messagebox.showerror("Error", "Failed to set rating.")
+    
+    def remove_speaker_rating(self):
+        """Remove rating for the selected speaker"""
+        display_name = self.selected_speaker_label.cget("text")
+        
+        if display_name == "None":
+            messagebox.showwarning("No Speaker", "Please select a speaker first.")
+            return
+        
+        # Convert display name back to actual speaker name
+        if display_name == "Single Speaker":
+            actual_speaker = ""
+        else:
+            actual_speaker = display_name
+            
+        # Remove rating
+        if self.speaker_service.remove_speaker_rating(self.model_name, actual_speaker):
+            # Update displays
+            self.update_current_rating_display(actual_speaker)
+            self.populate_speakers_tree()
+            self.rating_var.set(0.0)
+            
+            # Reselect current speaker
+            for item in self.speakers_tree.get_children():
+                if self.speakers_tree.item(item)['values'][0] == display_name:
+                    self.speakers_tree.selection_set(item)
+                    break
+                    
+            messagebox.showinfo("Success", f"Rating removed for speaker '{display_name}'")
+        else:
+            messagebox.showwarning("No Rating", f"Speaker '{display_name}' doesn't have a rating to remove.")
+    
+    def update_current_rating_display(self, speaker):
+        """Update the current rating display for a speaker"""
+        rating = self.speaker_service.get_speaker_rating(self.model_name, speaker)
+        if rating > 0.0:
+            self.current_rating_label.config(text=f"{rating:.1f}/5.0")
+            self.rating_var.set(rating)
+        else:
+            self.current_rating_label.config(text="No rating")
+            self.rating_var.set(0.0) 

@@ -14,6 +14,7 @@ class SpeakerService:
         self.tags_file = tags_file
         self.speaker_tags = {}  # {model_name: {speaker: set(tags)}} - for backward compatibility
         self.tag_definitions = {}  # {tag_name: {description, color, speakers: {model: [speakers]}}}
+        self.speaker_ratings = {}  # {model_name: {speaker: rating}} - for speaker/model ratings
         self.downloaded_models = set()  # Set of downloaded model names
         self.available_models = []  # List of all available models
         self.load_speaker_tags()
@@ -31,6 +32,7 @@ class SpeakerService:
                         if tags_data and any("speakers" in tag_data for tag_data in tags_data.values()):
                             # New tag-centric format
                             self.tag_definitions = data.get("_tags", {})
+                            self.speaker_ratings = data.get("_ratings", {})
                             self.downloaded_models = set(data.get("_models", {}).get("downloaded", []))
                             self.available_models = data.get("_models", {}).get("available", [])
                             
@@ -105,6 +107,9 @@ class SpeakerService:
                                             self.tag_definitions[tag]["speakers"][model_name] = []
                                         self.tag_definitions[tag]["speakers"][model_name].append(speaker)
                             
+                            # Load ratings
+                            self.speaker_ratings = data.get("_ratings", {})
+                            
                             # Load model status
                             models_data = data.get("_models", {})
                             self.downloaded_models = set(models_data.get("downloaded", []))
@@ -137,18 +142,23 @@ class SpeakerService:
                                             self.tag_definitions[tag]["speakers"][model_name] = []
                                         self.tag_definitions[tag]["speakers"][model_name].append(speaker)
                             
+                            # Load ratings
+                            self.speaker_ratings = data.get("_ratings", {})
+                            
                             # Initialize with legacy data
                             self.downloaded_models = set(self.speaker_tags.keys())
                             self.available_models = list(self.speaker_tags.keys())
             else:
                 self.speaker_tags = {}
                 self.tag_definitions = {}
+                self.speaker_ratings = {}
                 self.downloaded_models = set()
                 self.available_models = []
         except Exception as e:
             print(f"Error loading speaker tags: {e}")
             self.speaker_tags = {}
             self.tag_definitions = {}
+            self.speaker_ratings = {}
             self.downloaded_models = set()
             self.available_models = []
             
@@ -158,14 +168,15 @@ class SpeakerService:
             # Prepare data in new tag-centric format
             data = {
                 "_metadata": {
-                    "version": "1.3",
-                    "description": "TTS Tester data with tag-centric organization - one tag to many models/speakers"
+                    "version": "1.4",
+                    "description": "TTS Tester data with tag-centric organization and speaker ratings"
                 },
                 "_models": {
                     "downloaded": list(self.downloaded_models),
                     "available": self.available_models
                 },
-                "_tags": {}
+                "_tags": {},
+                "_ratings": self.speaker_ratings
             }
             
             # Save tag definitions with their speaker associations
@@ -400,4 +411,55 @@ class SpeakerService:
             result[model_name] = {}
             for speaker, tags in speakers.items():
                 result[model_name][speaker] = list(tags)
-        return result 
+        return result
+    
+    # Rating methods
+    def set_speaker_rating(self, model_name: str, speaker: str, rating: float) -> bool:
+        """Set a rating for a speaker (0.0 to 5.0)"""
+        if not model_name or not speaker or rating < 0.0 or rating > 5.0:
+            return False
+            
+        # Initialize model if it doesn't exist
+        if model_name not in self.speaker_ratings:
+            self.speaker_ratings[model_name] = {}
+            
+        # Set rating
+        self.speaker_ratings[model_name][speaker] = rating
+        return True
+    
+    def get_speaker_rating(self, model_name: str, speaker: str) -> float:
+        """Get the rating for a speaker (returns 0.0 if no rating)"""
+        if (model_name in self.speaker_ratings and 
+            speaker in self.speaker_ratings[model_name]):
+            return self.speaker_ratings[model_name][speaker]
+        return 0.0
+    
+    def remove_speaker_rating(self, model_name: str, speaker: str) -> bool:
+        """Remove the rating for a speaker"""
+        if (model_name in self.speaker_ratings and 
+            speaker in self.speaker_ratings[model_name]):
+            del self.speaker_ratings[model_name][speaker]
+            return True
+        return False
+    
+    def get_model_average_rating(self, model_name: str) -> float:
+        """Get the average rating for all speakers in a model"""
+        if model_name not in self.speaker_ratings:
+            return 0.0
+            
+        ratings = list(self.speaker_ratings[model_name].values())
+        if not ratings:
+            return 0.0
+            
+        return sum(ratings) / len(ratings)
+    
+    def get_rated_speakers(self, model_name: str) -> List[str]:
+        """Get all speakers that have ratings for a model"""
+        if model_name in self.speaker_ratings:
+            return list(self.speaker_ratings[model_name].keys())
+        return []
+    
+    def get_unrated_speakers(self, model_name: str, all_speakers: List[str]) -> List[str]:
+        """Get all speakers that don't have ratings for a model"""
+        rated_speakers = set(self.get_rated_speakers(model_name))
+        return [speaker for speaker in all_speakers if speaker not in rated_speakers] 

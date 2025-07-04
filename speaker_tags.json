@@ -1,15 +1,15 @@
 {
   "_metadata": {
-    "version": "1.3",
-    "description": "TTS Tester data with tag-centric organization - one tag to many models/speakers"
+    "version": "1.4",
+    "description": "TTS Tester data with tag-centric organization and speaker ratings"
   },
   "_models": {
     "downloaded": [
-      "tts_models/en/vctk/vits",
-      "tts_models/en/blizzard2013/capacitron-t2-c50",
-      "tts_models/en/ljspeech/vits",
       "tts_models/multilingual/multi-dataset/your_tts",
-      "tts_models/en/ljspeech/overflow"
+      "tts_models/en/vctk/vits",
+      "tts_models/en/ljspeech/overflow",
+      "tts_models/en/blizzard2013/capacitron-t2-c50",
+      "tts_models/en/ljspeech/vits"
     ],
     "available": [
       "tts_models/multilingual/multi-dataset/your_tts",
@@ -41,6 +41,30 @@
         ],
         "tts_models/en/blizzard2013/capacitron-t2-c50": [
           "tts_models/en/blizzard2013/capacitron-t2-c50"
+        ],
+        "tts_models/en/vctk/vits": [
+          "p361",
+          "ED\n",
+          "p225",
+          "p227",
+          "p237",
+          "p240",
+          "p243",
+          "p244",
+          "p245",
+          "p246",
+          "p247",
+          "p248",
+          "p249",
+          "p250",
+          "p259",
+          "p260",
+          "p261",
+          "p263",
+          "p268"
+        ],
+        "tts_models/en/ljspeech/vits": [
+          "tts_models/en/ljspeech/vits"
         ]
       }
     },
@@ -52,6 +76,270 @@
           "tts_models/en/blizzard2013/capacitron-t2-c50"
         ]
       }
+    },
+    "Male": {
+      "description": "Tag: Male",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p226",
+          "p228",
+          "p229",
+          "p230",
+          "p231",
+          "p232",
+          "p233",
+          "p234",
+          "p236",
+          "p238",
+          "p239",
+          "p241",
+          "p251",
+          "p252",
+          "p253",
+          "p254",
+          "p255",
+          "p256",
+          "p258",
+          "p262",
+          "p264",
+          "p265",
+          "p266",
+          "p267"
+        ]
+      }
+    },
+    "Tinny": {
+      "description": "Tag: Tinny",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p361",
+          "p225",
+          "p230",
+          "p236",
+          "p237",
+          "p240",
+          "p243",
+          "p244",
+          "p249",
+          "p256",
+          "p259",
+          "p264",
+          "p268"
+        ],
+        "tts_models/en/ljspeech/overflow": [
+          "tts_models/en/ljspeech/overflow"
+        ]
+      }
+    },
+    "Good": {
+      "description": "Tag: Good",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "ED\n",
+          "p227",
+          "p228",
+          "p229",
+          "p231",
+          "p244",
+          "p245",
+          "p260"
+        ]
+      }
+    },
+    "Bad": {
+      "description": "Tag: Bad",
+      "color": "#808080",
+      "speakers": {}
+    },
+    "Robotic": {
+      "description": "Tag: Robotic",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p225",
+          "p232",
+          "p236",
+          "p240",
+          "p241",
+          "p244",
+          "p246",
+          "p249",
+          "p254",
+          "p256",
+          "p259",
+          "p264",
+          "p268"
+        ],
+        "tts_models/en/ljspeech/overflow": [
+          "tts_models/en/ljspeech/overflow"
+        ],
+        "tts_models/en/ljspeech/vits": [
+          "tts_models/en/ljspeech/vits"
+        ]
+      }
+    },
+    "Very good": {
+      "description": "Tag: Very good",
+      "color": "#808080",
+      "speakers": {}
+    },
+    "Breathy": {
+      "description": "Tag: Breathy",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p225",
+          "p230",
+          "p232",
+          "p237",
+          "p238",
+          "p246",
+          "p259",
+          "p260",
+          "p261",
+          "p262",
+          "p266"
+        ]
+      }
+    },
+    "Irish-Welsh-Scottish": {
+      "description": "Tag: Irish-Welsh-Scottish",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p226",
+          "p228",
+          "p237",
+          "p238",
+          "p239",
+          "p243",
+          "p246",
+          "p251",
+          "p252",
+          "p253",
+          "p255",
+          "p256",
+          "p257",
+          "p258",
+          "p260",
+          "p262",
+          "p263",
+          "p265",
+          "p266"
+        ]
+      }
+    },
+    "Pauses": {
+      "description": "Tag: Pauses",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p229"
+        ]
+      }
+    },
+    "Fast Speaking": {
+      "description": "Tag: Fast Speaking",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p230",
+          "p241",
+          "p250",
+          "p256",
+          "p264"
+        ]
+      }
+    },
+    "Indian": {
+      "description": "Tag: Indian",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p233"
+        ]
+      }
+    },
+    "Clear": {
+      "description": "Tag: Clear",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p234",
+          "p237",
+          "p239",
+          "p241",
+          "p244",
+          "p245",
+          "p251",
+          "p252",
+          "p255",
+          "p260",
+          "p263",
+          "p267"
+        ],
+        "tts_models/en/ljspeech/vits": [
+          "tts_models/en/ljspeech/vits"
+        ]
+      }
+    },
+    "Slow Speaking": {
+      "description": "Tag: Slow Speaking",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p247",
+          "p261",
+          "p262"
+        ]
+      }
+    },
+    "Higher_Pitched": {
+      "description": "Tag: Higher_Pitched",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p248",
+          "p263"
+        ]
+      }
+    },
+    "Bass": {
+      "description": "Tag: Bass",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p254",
+          "p257",
+          "p265",
+          "p267"
+        ]
+      }
+    },
+    "--Unsure Gender": {
+      "description": "Tag: --Unsure Gender",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/vctk/vits": [
+          "p257"
+        ]
+      }
+    },
+    "American": {
+      "description": "Tag: American",
+      "color": "#808080",
+      "speakers": {
+        "tts_models/en/ljspeech/overflow": [
+          "tts_models/en/ljspeech/overflow"
+        ],
+        "tts_models/en/ljspeech/vits": [
+          "tts_models/en/ljspeech/vits"
+        ]
+      }
     }
-  }
+  },
+  "_ratings": {}
 }
