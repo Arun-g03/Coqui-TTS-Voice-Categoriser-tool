@@ -112,8 +112,24 @@ class SpeakerTagDialog(tk.Toplevel):
         remove_tag_btn = ttk.Button(current_tags_frame, text="Remove Selected Tag", command=self.remove_selected_tag)
         remove_tag_btn.pack(pady=5)
         
-        # Add tag section
-        add_tag_frame = ttk.LabelFrame(right_frame, text="Add Tag")
+        # Tag Definitions section (Global tag management)
+        tag_definitions_frame = ttk.LabelFrame(right_frame, text="Tag Definitions")
+        tag_definitions_frame.pack(fill='x', padx=5, pady=5)
+        
+        # New tag definition input
+        new_tag_frame = ttk.Frame(tag_definitions_frame)
+        new_tag_frame.pack(fill='x', padx=5, pady=5)
+        ttk.Label(new_tag_frame, text="New Tag:").pack(side='left')
+        self.new_tag_def_var = tk.StringVar()
+        new_tag_entry = ttk.Entry(new_tag_frame, textvariable=self.new_tag_def_var)
+        new_tag_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
+        
+        # Add tag definition button
+        add_tag_def_btn = ttk.Button(tag_definitions_frame, text="Create Tag Definition", command=self.add_tag_definition)
+        add_tag_def_btn.pack(pady=5)
+        
+        # Add tag section (for adding tags to selected speaker)
+        add_tag_frame = ttk.LabelFrame(right_frame, text="Add Tag to Speaker")
         add_tag_frame.pack(fill='x', padx=5, pady=5)
         
         # Tag input
@@ -125,7 +141,7 @@ class SpeakerTagDialog(tk.Toplevel):
         tag_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
         
         # Add tag button
-        add_tag_btn = ttk.Button(add_tag_frame, text="Add Tag", command=self.add_tag_to_speaker)
+        add_tag_btn = ttk.Button(add_tag_frame, text="Add Tag to Speaker", command=self.add_tag_to_speaker)
         add_tag_btn.pack(pady=5)
         
         # Existing tags section
@@ -167,14 +183,17 @@ class SpeakerTagDialog(tk.Toplevel):
         
         # Add speakers
         for speaker in self.speakers:
+            # Display "Single Speaker" for empty speaker names
+            display_name = "Single Speaker" if speaker == "" else speaker
             tags = self.speaker_service.get_speaker_tags(self.model_name, speaker)
             tags_str = ", ".join(tags) if tags else "No tags"
-            self.speakers_tree.insert('', 'end', values=(speaker, tags_str))
+            self.speakers_tree.insert('', 'end', values=(display_name, tags_str))
             
     def populate_existing_tags(self):
         """Populate the existing tags listbox"""
         self.existing_tags_listbox.delete(0, tk.END)
-        all_tags = self.speaker_service.get_all_tags_for_model(self.model_name)
+        # Show all available tags, not just the ones used in current model
+        all_tags = self.speaker_service.get_all_tags()
         for tag in sorted(all_tags):
             self.existing_tags_listbox.insert(tk.END, tag)
             
@@ -188,8 +207,11 @@ class SpeakerTagDialog(tk.Toplevel):
             self.speakers_tree.delete(item)
         
         for speaker in self.speakers:
+            # Display "Single Speaker" for empty speaker names
+            display_name = "Single Speaker" if speaker == "" else speaker
+            
             # Apply search filter
-            if search_text and search_text not in speaker.lower():
+            if search_text and search_text not in display_name.lower():
                 continue
                 
             # Apply tag filter
@@ -200,7 +222,7 @@ class SpeakerTagDialog(tk.Toplevel):
                 continue
                 
             tags_str = ", ".join(tags) if tags else "No tags"
-            self.speakers_tree.insert('', 'end', values=(speaker, tags_str))
+            self.speakers_tree.insert('', 'end', values=(display_name, tags_str))
             
     def on_filter_change(self):
         """Handle filter radio button change"""
@@ -211,9 +233,16 @@ class SpeakerTagDialog(tk.Toplevel):
         selection = self.speakers_tree.selection()
         if selection:
             item = self.speakers_tree.item(selection[0])
-            speaker = item['values'][0]
-            self.selected_speaker_label.config(text=speaker)
-            self.update_current_tags_display(speaker)
+            display_name = item['values'][0]
+            
+            # Convert display name back to actual speaker name
+            if display_name == "Single Speaker":
+                actual_speaker = ""
+            else:
+                actual_speaker = display_name
+            
+            self.selected_speaker_label.config(text=display_name)
+            self.update_current_tags_display(actual_speaker)
         else:
             self.selected_speaker_label.config(text="None")
             self.current_tags_listbox.delete(0, tk.END)
@@ -227,22 +256,28 @@ class SpeakerTagDialog(tk.Toplevel):
             
     def add_tag_to_speaker(self):
         """Add a new tag to the selected speaker"""
-        speaker = self.selected_speaker_label.cget("text")
+        display_name = self.selected_speaker_label.cget("text")
         tag = self.new_tag_var.get().strip()
         
-        if speaker == "None":
+        if display_name == "None":
             messagebox.showwarning("No Speaker", "Please select a speaker first.")
             return
             
         if not tag:
             messagebox.showwarning("No Tag", "Please enter a tag name.")
             return
+        
+        # Convert display name back to actual speaker name
+        if display_name == "Single Speaker":
+            actual_speaker = ""
+        else:
+            actual_speaker = display_name
             
         # Add tag
-        self.speaker_service.add_tag_to_speaker(self.model_name, speaker, tag)
+        self.speaker_service.add_tag_to_speaker(self.model_name, actual_speaker, tag)
         
         # Update displays
-        self.update_current_tags_display(speaker)
+        self.update_current_tags_display(actual_speaker)
         self.populate_speakers_tree()
         self.populate_existing_tags()
         
@@ -251,66 +286,96 @@ class SpeakerTagDialog(tk.Toplevel):
         
         # Reselect current speaker
         for item in self.speakers_tree.get_children():
-            if self.speakers_tree.item(item)['values'][0] == speaker:
+            if self.speakers_tree.item(item)['values'][0] == display_name:
                 self.speakers_tree.selection_set(item)
                 break
                 
     def add_existing_tag(self):
         """Add an existing tag to the selected speaker"""
-        speaker = self.selected_speaker_label.cget("text")
+        display_name = self.selected_speaker_label.cget("text")
         selection = self.existing_tags_listbox.curselection()
         
-        if speaker == "None":
+        if display_name == "None":
             messagebox.showwarning("No Speaker", "Please select a speaker first.")
             return
             
         if not selection:
             messagebox.showwarning("No Tag", "Please select a tag to add.")
             return
+        
+        # Convert display name back to actual speaker name
+        if display_name == "Single Speaker":
+            actual_speaker = ""
+        else:
+            actual_speaker = display_name
             
         tag = self.existing_tags_listbox.get(selection[0])
         
         # Add tag
-        self.speaker_service.add_tag_to_speaker(self.model_name, speaker, tag)
+        self.speaker_service.add_tag_to_speaker(self.model_name, actual_speaker, tag)
         
         # Update displays
-        self.update_current_tags_display(speaker)
+        self.update_current_tags_display(actual_speaker)
         self.populate_speakers_tree()
         
         # Reselect current speaker
         for item in self.speakers_tree.get_children():
-            if self.speakers_tree.item(item)['values'][0] == speaker:
+            if self.speakers_tree.item(item)['values'][0] == display_name:
                 self.speakers_tree.selection_set(item)
                 break
                 
     def remove_selected_tag(self):
         """Remove the selected tag from the current speaker"""
-        speaker = self.selected_speaker_label.cget("text")
+        display_name = self.selected_speaker_label.cget("text")
         selection = self.current_tags_listbox.curselection()
         
-        if speaker == "None":
+        if display_name == "None":
             messagebox.showwarning("No Speaker", "Please select a speaker first.")
             return
             
         if not selection:
             messagebox.showwarning("No Tag", "Please select a tag to remove.")
             return
+        
+        # Convert display name back to actual speaker name
+        if display_name == "Single Speaker":
+            actual_speaker = ""
+        else:
+            actual_speaker = display_name
             
         tag = self.current_tags_listbox.get(selection[0])
         
         # Remove tag
-        if self.speaker_service.remove_tag_from_speaker(self.model_name, speaker, tag):
+        if self.speaker_service.remove_tag_from_speaker(self.model_name, actual_speaker, tag):
             # Update displays
-            self.update_current_tags_display(speaker)
+            self.update_current_tags_display(actual_speaker)
             self.populate_speakers_tree()
             
             # Reselect current speaker
             for item in self.speakers_tree.get_children():
-                if self.speakers_tree.item(item)['values'][0] == speaker:
+                if self.speakers_tree.item(item)['values'][0] == display_name:
                     self.speakers_tree.selection_set(item)
                     break
         else:
-            messagebox.showwarning("Tag Not Found", f"Speaker '{speaker}' doesn't have tag '{tag}'")
+            messagebox.showwarning("Tag Not Found", f"Speaker '{display_name}' doesn't have tag '{tag}'")
+            
+    def add_tag_definition(self):
+        """Add a new global tag definition"""
+        tag_name = self.new_tag_def_var.get().strip()
+        if not tag_name:
+            messagebox.showwarning("No Tag Name", "Please enter a tag name.")
+            return
+        # Prevent model names or single letters (optional)
+        if "/" in tag_name or len(tag_name) == 1:
+            messagebox.showwarning("Invalid Tag", "Tag names cannot be model names or single letters.")
+            return
+        if tag_name in self.speaker_service.get_all_tags():
+            messagebox.showwarning("Tag Exists", f"Tag '{tag_name}' already exists.")
+            return
+        self.speaker_service.add_tag_definition(tag_name, f"Tag: {tag_name}", "#808080")
+        self.populate_existing_tags()
+        self.new_tag_def_var.set("")
+        messagebox.showinfo("Success", f"Tag definition '{tag_name}' created successfully.")
             
     def save_changes(self):
         """Save changes and close dialog"""

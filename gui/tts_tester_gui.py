@@ -155,7 +155,14 @@ class TTSTesterGUI(tk.Tk):
         # Text input
         text_frame = ttk.Frame(self)
         text_frame.pack(pady=10, fill='x')
-        ttk.Label(text_frame, text="Input Text:").pack(anchor='w', padx=5)
+        
+        # Text input header with reset button
+        text_header_frame = ttk.Frame(text_frame)
+        text_header_frame.pack(fill='x', padx=5)
+        ttk.Label(text_header_frame, text="Input Text:").pack(side='left')
+        self.reset_text_btn = ttk.Button(text_header_frame, text="Reset to Default", command=self.reset_text_to_default)
+        self.reset_text_btn.pack(side='right')
+        
         self.text_input = scrolledtext.ScrolledText(text_frame, height=7, wrap='word',
                                                    bg=self.theme_manager.colors['entry_bg'],
                                                    fg=self.theme_manager.colors['entry_fg'],
@@ -261,8 +268,9 @@ class TTSTesterGUI(tk.Tk):
             available_models = TTS().list_models()
             english_models = [m for m in available_models if m.startswith('tts_models/en/') or m.startswith('tts_models/multilingual/')]
             
-            # Update available models in speaker service
+            # Update available models in speaker service and save to JSON
             self.speaker_service.update_available_models(english_models)
+            self.speaker_service.save_speaker_tags()
             
             # Organize models by download status
             downloaded_models = self.speaker_service.get_downloaded_models()
@@ -331,20 +339,20 @@ class TTSTesterGUI(tk.Tk):
                 # Mark model as downloaded if successfully loaded
                 if self.speaker_service.mark_model_downloaded(model):
                     self.log(f"✅ Marked '{model}' as downloaded")
+                    # Save changes to JSON
+                    self.speaker_service.save_speaker_tags()
                     # Refresh model list to update organization
                     self.load_coqui_models()
                 
                 # Load speakers
                 speakers = getattr(tts, 'speakers', None)
-                if speakers:
+                if speakers and isinstance(speakers, (list, tuple)) and len(speakers) > 0:
                     self.coqui_speakers = speakers
-                    self.update_speaker_menu()
                     self.log(f"Loaded {len(speakers)} speakers.")
                 else:
-                    self.coqui_speakers = []
-                    self.speaker_menu['values'] = []
-                    self.speaker_var.set('')
-                    self.log("Single-speaker model.")
+                    self.coqui_speakers = [model]  # Use model name for single-speaker
+                    self.log("Single-speaker model (using model name as speaker identifier).")
+                self.update_speaker_menu()
                 
                 # Load languages
                 languages = getattr(tts, 'languages', None)
@@ -370,28 +378,12 @@ class TTSTesterGUI(tk.Tk):
             self.speaker_var.set('')
             return
         
-        # Filter speakers based on toggle state
-        if self.show_untagged_only.get():
-            # Show only untagged speakers
-            untagged_speakers = []
-            for speaker in self.coqui_speakers:
-                if not self.speaker_service.get_speaker_tags(self.selected_model, speaker):
-                    untagged_speakers.append(speaker)
-            self.speaker_menu['values'] = untagged_speakers
-            self.log(f"Filtered to show {len(untagged_speakers)} untagged speakers")
-        else:
-            # Show all speakers
-            self.speaker_menu['values'] = self.coqui_speakers
-        
-        # Set first speaker as default (if available)
+        self.speaker_menu['values'] = self.coqui_speakers
+
         if self.speaker_menu['values']:
             self.speaker_var.set(self.speaker_menu['values'][0])
         else:
             self.speaker_var.set('')
-            if self.show_untagged_only.get():
-                self.log("No untagged speakers found")
-        
-        # Update quick tagging controls
         self.update_quick_tagging_controls()
 
     def on_filter_toggle(self):
@@ -400,16 +392,23 @@ class TTSTesterGUI(tk.Tk):
 
     def update_quick_tagging_controls(self):
         """Update the quick tagging controls based on current speaker"""
-        current_speaker = self.speaker_var.get()
+        current_display = self.speaker_var.get()
+        
+        # Convert display name back to actual speaker name
+        current_speaker = ""
+        if current_display == "Single Speaker":
+            current_speaker = ""
+        else:
+            current_speaker = current_display
         
         # Update current speaker label
-        if current_speaker:
-            self.current_speaker_label.config(text=current_speaker)
+        if current_display:
+            self.current_speaker_label.config(text=current_display)
         else:
             self.current_speaker_label.config(text="None")
         
         # Update tags status
-        if current_speaker:
+        if current_speaker is not None:
             tags = self.speaker_service.get_speaker_tags(self.selected_model, current_speaker)
             if tags:
                 self.tags_status_label.config(text=", ".join(tags))
@@ -422,7 +421,7 @@ class TTSTesterGUI(tk.Tk):
         self.update_quick_tag_dropdown()
         
         # Update button states based on speaker selection
-        if current_speaker:
+        if current_display:
             self.quick_tag_btn.config(state='normal')
             self.remove_tag_btn.config(state='normal')
         else:
@@ -444,16 +443,23 @@ class TTSTesterGUI(tk.Tk):
 
     def quick_add_tag(self):
         """Quickly add a tag to the current speaker"""
-        current_speaker = self.speaker_var.get()
+        current_display = self.speaker_var.get()
         selected_tag = self.quick_tag_var.get()
         
-        if not current_speaker:
+        if not current_display:
             messagebox.showwarning("No Speaker", "Please select a speaker first.")
             return
         
         if not selected_tag:
             messagebox.showwarning("No Tag", "Please select a tag first.")
             return
+        
+        # Convert display name back to actual speaker name
+        current_speaker = ""
+        if current_display == "Single Speaker":
+            current_speaker = ""
+        else:
+            current_speaker = current_display
         
         # Handle "Create New Tag" option
         if selected_tag == "Create New Tag...":
@@ -467,15 +473,17 @@ class TTSTesterGUI(tk.Tk):
         
         # Add tag via speaker service
         self.speaker_service.add_tag_to_speaker(self.selected_model, current_speaker, selected_tag)
+        # Save changes to JSON
+        self.speaker_service.save_speaker_tags()
         self.update_quick_tagging_controls()
-        self.log(f"Added tag '{selected_tag}' to speaker '{current_speaker}'")
+        self.log(f"Added tag '{selected_tag}' to speaker '{current_display}'")
 
     def quick_remove_tag(self):
         """Quickly remove a tag from the current speaker"""
-        current_speaker = self.speaker_var.get()
+        current_display = self.speaker_var.get()
         selected_tag = self.quick_tag_var.get()
         
-        if not current_speaker:
+        if not current_display:
             messagebox.showwarning("No Speaker", "Please select a speaker first.")
             return
         
@@ -483,12 +491,21 @@ class TTSTesterGUI(tk.Tk):
             messagebox.showwarning("No Tag", "Please select a tag to remove.")
             return
         
+        # Convert display name back to actual speaker name
+        current_speaker = ""
+        if current_display == "Single Speaker":
+            current_speaker = ""
+        else:
+            current_speaker = current_display
+        
         # Remove tag via speaker service
         if self.speaker_service.remove_tag_from_speaker(self.selected_model, current_speaker, selected_tag):
+            # Save changes to JSON
+            self.speaker_service.save_speaker_tags()
             self.update_quick_tagging_controls()
-            self.log(f"Removed tag '{selected_tag}' from speaker '{current_speaker}'")
+            self.log(f"Removed tag '{selected_tag}' from speaker '{current_display}'")
         else:
-            messagebox.showwarning("Tag Not Found", f"Speaker '{current_speaker}' doesn't have tag '{selected_tag}'")
+            messagebox.showwarning("Tag Not Found", f"Speaker '{current_display}' doesn't have tag '{selected_tag}'")
 
     def on_speaker_change(self, event=None):
         """Handle speaker selection change"""
@@ -607,7 +624,9 @@ class TTSTesterGUI(tk.Tk):
                 kwargs = dict(text=text, file_path=AUDIO_OUT_PATH_COQUI)
                 
                 # Add speaker if available and model is multi-speaker
-                if speaker and self.coqui_speakers:
+                # Check if the model is actually multi-speaker using TTS object properties
+                is_multi_speaker = getattr(tts, 'is_multi_speaker', False)
+                if speaker and is_multi_speaker and speaker != "Single Speaker":
                     kwargs['speaker'] = speaker
                 
                 # Add language if available and model is multi-lingual
@@ -699,6 +718,12 @@ class TTSTesterGUI(tk.Tk):
                 self.is_playing = False
                 self.play_btn.config(text="Play")
         threading.Thread(target=do_play, daemon=True).start()
+
+    def reset_text_to_default(self):
+        """Reset the text input to the default text"""
+        self.text_input.delete('1.0', tk.END)
+        self.text_input.insert('1.0', DEFAULT_TEXT)
+        self.log("🔄 Text reset to default")
 
     def stop_audio(self):
         """Stop current audio playback"""
