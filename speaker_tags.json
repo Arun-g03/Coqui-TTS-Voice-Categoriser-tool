@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "version": "1.3",
+    "description": "TTS Tester data with tag-centric organization - one tag to many models/speakers"
+  },
+  "_models": {
+    "downloaded": [
+      "tts_models/multilingual/multi-dataset/your_tts"
+    ],
+    "available": [
+      "tts_models/en/ljspeech/tacotron2-DDC",
+      "tts_models/en/ljspeech/fast_pitch",
+      "tts_models/en/ljspeech/glow-tts",
+      "tts_models/en/vctk/vits",
+      "tts_models/en/vctk/tacotron2-DDC",
+      "tts_models/multilingual/multi-dataset/your_tts"
+    ]
+  },
+  "_tags": {
+    "Female": {
+      "description": "Female voice characteristics",
+      "color": "#ff69b4",
+      "speakers": {
+        "tts_models/multilingual/multi-dataset/your_tts": ["female-en-5", "female-en-5\n", "female-pt-4\n"]
+      }
+    },
+    "Male": {
+      "description": "Male voice characteristics", 
+      "color": "#4169e1",
+      "speakers": {
+        "tts_models/multilingual/multi-dataset/your_tts": ["male-en-2", "male-en-2\n", "male-pt-3\n"]
+      }
+    },
+    "English": {
+      "description": "English language speaker",
+      "color": "#32cd32",
+      "speakers": {
+        "tts_models/multilingual/multi-dataset/your_tts": ["female-en-5", "female-en-5\n", "male-en-2", "male-en-2\n"]
+      }
+    },
+    "Robotic": {
+      "description": "Robotic or synthetic voice quality",
+      "color": "#ff6347",
+      "speakers": {
+        "tts_models/multilingual/multi-dataset/your_tts": ["female-en-5", "female-en-5\n", "female-pt-4\n", "male-pt-3\n"]
+      }
+    },
+    "Bad but Good": {
+      "description": "Imperfect but charming voice",
+      "color": "#ffd700",
+      "speakers": {
+        "tts_models/multilingual/multi-dataset/your_tts": ["female-en-5", "female-en-5\n", "male-en-2"]
+      }
+    },
+    "Teen": {
+      "description": "Teenage voice characteristics",
+      "color": "#ff69b4",
+      "speakers": {
+        "tts_models/multilingual/multi-dataset/your_tts": ["female-pt-4\n"]
+      }
+    }
+  }
+} 
